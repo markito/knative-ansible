@@ -9,9 +9,9 @@ Using events to compose and orchestrate playbooks and applications can be extrem
 The benefits of this model are: 
 - All components of the application can auto-scale up and down (to zero) according to the demand. 
     - If multiple events are sent to a given application, the system can automatically provision more pods to keep up with the demand. 
-- You can add/remove steps and orchestrate multiple playbooks asynchronously 
+    - You can define concurrency level for each service.
+- You can add/remove steps and orchestrate multiple playbooks asynchronously
 - You can trigger applications and other services (notification systems) when a playbook or a step in a playbook is completed. 
-
 
 ## Setup and Requirements
 
@@ -38,15 +38,34 @@ You can learn more about Knative Brokers [here](https://knative.dev/docs/eventin
 
 ## Build and Deploy the Ansible Runner Application
 
-If just want to run the sample application, skip this step. 
+### Build 
+If just want to run the sample application, skip this step and go to Deploy. 
 
 Build: 
 `docker build . -t quay.io/markito/knative-ansible`
 
-Deploy: 
+Push: 
 `docker push quay.io/markito/knative-ansible`
 
 Replace the image name or repository location with your container registry of choice. DockerHub, Quay, GitHub...
+
+### Create a serverless ansible runner (Deploy)
+
+```
+kn service create ansible-runner --image=quay.io/markito/knative-ansible:latest -eBROKER_URL=http://default-broker.markito.svc.cluster.local --limits-cpu=0.5 --limits-memory=100M
+Creating service 'ansible-runner' in namespace 'markito':
+
+  0.190s The Route is still working to reflect the latest desired specification.
+  0.296s Configuration "ansible-runner" is waiting for a Revision to become ready.
+  5.896s ...
+  6.067s Ingress has not yet been reconciled.
+  6.177s Ready to serve.
+
+Service 'ansible-runner' created to latest revision 'ansible-runner-ppsrg-1' is available at URL:
+http://ansible-runner-markito.apps.yourcluster.org
+```
+
+* Replace the BROKER_URL value with the URL from the broker of the previous step. 
 
 ## Deploy the event consumer and create a trigger
 
@@ -61,6 +80,16 @@ This application now needs to be wired to the broker in order to receive events.
 This will simply consume every single event on the `default` broker and prints the content of the those messages. 
 
 An easy way to tail the logs of multiple containers inside a pod in Kubernetes is to use [`stern`](https://github.com/wercker/stern), which is what I'll use here.  After installing stern run `stern logger` in order to see the logs of all the containers of the logger application. 
+
+## Running a playbook 
+
+You can use `curl` or a browser accessing the url of the application with playbook argument:
+
+```
+$ curl "http://ansible-runner-<namespace>.apps.yourcluster.org/?playbook=https://raw.githubusercontent.com/ansible/tower-example/master/helloworld.yml"                                              
+Playbook status: successful%
+```
+* Replace the URL with your cluster URL.
 
 After converting ansible events to Cloud Events, you should see output similar to the example below. 
 
@@ -116,3 +145,8 @@ Then we need to create a new trigger but this time with a filter, so that you sp
 
 `kn trigger create logger-trigger-playbook-stats --filter type=playbook_on_stats --sink svc:logger-playbook-stats --broker default`
 
+## Next Steps and ideas 
+
+- Build an Ansible Event Source. 
+- Provide a user experience that allow more complex pipelines/flows to be visualized. 
+- Provide a web interface where a user can write and run the playbook without building a container. 
