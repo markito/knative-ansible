@@ -1,0 +1,6 @@
+- name: Hello World!
+  hosts: localhost
+ 
+  tasks:
+    - name: Hello World!
+      shell: echo "Hi! This is {{ lookup('env','NAME') }}"
