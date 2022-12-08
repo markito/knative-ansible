@@ -1,5 +1,5 @@
 ansible-runner==1.4.6
-certifi==2020.4.5.1
+certifi==2022.12.7
 chardet==3.0.4
 click==7.1.1
 cloudevents==0.2.3
